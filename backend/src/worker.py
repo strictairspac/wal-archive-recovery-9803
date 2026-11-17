@@ -5,7 +5,7 @@ from redis import Redis
 from src.config.database import Session
 from src.config.settings import REDIS_URL
 from src.models.entities import Recovery
-from src.services.wal_engine import recover
+from src.services.job_runner import execute
 redis = Redis.from_url(REDIS_URL)
 logging.basicConfig(level=logging.INFO)
 # Redis leadership lock ensures only one worker processes the durable DB queue.
@@ -19,7 +19,9 @@ while True:
                 if job:
                     job.status = 'running'
                     try:
-                        job.result = recover(job.snapshot['log_set']['initial'],job.snapshot['log_set']['records'],job.snapshot['case']['crash_after'])
+                        # Jobs run strictly from the snapshot frozen at enqueue time;
+                        # segments archived afterwards never change a queued run.
+                        job.result = execute(job)
                         job.status = 'completed'
                     except ValueError as exc:
                         job.result = {'error': str(exc), 'simulation': True}

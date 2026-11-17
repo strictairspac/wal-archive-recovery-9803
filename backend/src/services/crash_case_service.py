@@ -7,5 +7,6 @@ def list_crash_cases(db):return [record(x) for x in db.scalars(select(CrashCase)
 def create_crash_case(db,data):
     logs=db.get(LogSet,data.log_set_id)
     if logs is None:raise HTTPException(404,'日志集不存在')
-    if data.crash_after>len(logs.records):raise HTTPException(422,'崩溃点超过日志条数')
+    limit=len(logs.records) if logs.segments is None else 200
+    if data.crash_after>limit:raise HTTPException(422,'崩溃点超过日志条数')
     obj=CrashCase(**data.model_dump());db.add(obj);db.flush();return record(obj)
